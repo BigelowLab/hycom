@@ -12,11 +12,11 @@ extract(x, ...)
 
 \method{extract}{default}(x, y = NULL, ...)
 
-\method{extract}{sf}(x, y = NULL, varname = ersst_vars(y), verbose = FALSE, ...)
+\method{extract}{sf}(x, y = NULL, varname = hycom_vars(y), verbose = FALSE, ...)
 
-\method{extract}{sfc_POINT}(x, y = NULL, varname = ersst_vars(y), verbose = FALSE, ...)
+\method{extract}{sfc_POINT}(x, y = NULL, varname = hycom_vars(y), verbose = FALSE, ...)
 
-\method{extract}{sfc_POLYGON}(x, y = NULL, varname = ersst_vars(y)[1], ...)
+\method{extract}{sfc_POLYGON}(x, y = NULL, varname = hycom_vars(y)[1], verbose = FALSE, ...)
 }
 \arguments{
 \item{x}{\code{sfc} object that defines a bounding box}

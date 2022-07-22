@@ -1,4 +1,3 @@
-
 #' extract generic
 #'
 #' @export
@@ -19,35 +18,42 @@ extract.default <- function(x, y = NULL, ...){
 }
 
 #' @export
-#' @param x \code{sf} object
+#' @param x \code{sf} object with POSIX time encoded in the coordinates
 #' @param y \code{ncdf4} object
 #' @param varname character, one or more variable names
 #' @param verbose logical, output helpful messages?
 #' @describeIn extract Extract from a NCDF4 object using any sf object
 extract.sf <- function(x, y = NULL, 
-                       varname = ersst_vars(y),
-                       verbose = FALSE, ...){
+                       varname = hycom_vars(y),
+                       verbose = FALSE, 
+                       ...){
   
   typ <- xyzt::get_geometry_type(x)
   if (verbose[1]) {
-    cat("extract.sf typ =", typ, "\n" )
+    cat("extract.sf type: ", typ, "\n" )
     cat("  varname:", paste(varname, collapse = ", "), "\n")
   }
   switch(typ,
          "POINT" = {
            g <- sf::st_geometry(x)
+           d <- xyzt::get_geometry_dimension(g)
+           # this isn't right... we need to test for each variable name the number
+           # of required dims... This means a user could get water_temp[x,y,z,t] and
+           # bottom_water_temp[x,y,t] in a single call.  Hmmm.
+           if ((nchar(d) < 3)) stop("time must be included in xyzt coordinates")
            r <- extract(g, y = y, varname = varname, verbose = verbose, ...)
-          },
+         },
          #"BBOX" = {do something ?}
          "POLYGON" = {
+           
            g <- sf::st_geometry(x)
            ss <- lapply(varname,
-                function(varnm,g = NULL, y = NULL, ...) {
-                  extract(g, y = y, varname = varnm, verbose = verbose, ...)
-                }, g = g, y = y, ...)
+                        function(varnm,g = NULL, y = NULL, ...) {
+                          extract(g, y = y, varname = varnm, verbose = verbose, ...)
+                        }, g = g, y = y, ...)
            r <- Reduce(c, ss)
-          }
-         )
+         }
+  )
   r
 }
 
@@ -59,7 +65,7 @@ extract.sf <- function(x, y = NULL,
 #' @return tibble of extracted values (one variable per covariate)
 #' @describeIn extract Extract data from a NCDF4 object using sf POINT object
 extract.sfc_POINT <- function(x, y = NULL, 
-                              varname = ersst_vars(y),
+                              varname = hycom_vars(y),
                               verbose = FALSE, 
                               ...){
   if (verbose[1]) {
@@ -69,7 +75,7 @@ extract.sfc_POINT <- function(x, y = NULL,
   
   # Extract points for a given variable
   # 
-  # @param tbl table of navigation info, see \code{\link{ersst_nc_nav_point}}
+  # @param tbl table of navigation info, see \code{\link{hycom_nc_nav_point}}
   # @param key table of variable name
   # @param X \code{ncdf4} object
   # @return table of variable values
@@ -87,7 +93,7 @@ extract.sfc_POINT <- function(x, y = NULL,
   
   
   
-  nav <- ersst_nc_nav_point(y, x, varname = varname)
+  nav <- hycom_nc_nav_point(y, x, varname = varname, ...)
   xx <- nav |>
     dplyr::nest_by(.data$varname) |>
     dplyr::group_map(.extract_point, X = y) |> 
@@ -95,29 +101,33 @@ extract.sfc_POINT <- function(x, y = NULL,
 }
 
 
-
-
-
-
-
 #' @export
 #' @param x \code{sfc} object that defines a bounding box
 #' @param y \code{ncdf4} object 
 #' @param varname character one or more variable names
+#' @param verbose logical, output helpful messages?
 #' @return stars object (one variable per covariate)
 #' @describeIn extract Extract data from a NCDF4 object using sf POLYGON object
-extract.sfc_POLYGON <- function(x, y = NULL, varname = ersst_vars(y)[1], ...){
+extract.sfc_POLYGON <- function(x, y = NULL, 
+                                varname = hycom_vars(y)[1], 
+                                verbose = FALSE,
+                                ...){
   
-    bb <- xyzt::as_BBOX(x)
-    nav <- ersst_nc_nav_bb(y, bb, varname = varname)
-    m <- ncdf4::ncvar_get(y, varid = varname,
-                     start = nav$start, count = nav$count)
-    stars::st_as_stars(sf::st_bbox(x), 
-                         nx = nav$count[1],
-                         ny = nav$count[2],
-                         values = m ) |>
-      stars::st_flip("y") |>
-      set_names(varname)
+  if (verbose[1]) {
+    cat("extract.sfc_POLYGON\n" )
+    cat("  varname:", paste(varname, collapse = ", "), "\n")
+  }
+  #if (!inherits(x, 'sfc')) x <- sf::st_geometry(x)
+  #bb <- xyzt::as_BBOX(x)
+  nav <- hycom_nc_nav_bb(y, x, varname = varname, ...)
+  m <- ncdf4::ncvar_get(y, varid = varname,
+                        start = nav$start, count = nav$count)
+  stars::st_as_stars(sf::st_bbox(x), 
+                     nx = nav$count[1],
+                     ny = nav$count[2],
+                     values = m ) |>
+    stars::st_flip("y") |>
+    rlang::set_names(varname)
 }
 
 

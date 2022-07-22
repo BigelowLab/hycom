@@ -1,75 +1,93 @@
-#' Retrieve the spatial resolution stated in the global metadata
+#' Retrieve the HYCOM time origin 
+#' 
+#' @export 
+#' @param x ncdf4 object
+#' @param tz character, the time zone to use
+#' @return POSIXct time
+hycom_t0 <- function(x, tz = 'UTC'){
+  #units: hours since 2000-01-01 00:00:00
+  as.POSIXct(x$dim$time$units, format = "hours since %Y-%m-%d %H:%M:%S", tz = tz)
+}
+
+#' Retrieve the HYCOM time vector 
+#' 
+
+#' @export 
+#' @param x ncdf4 object
+#' @return POSIXct time
+hycom_time <- function(x){
+  x$dim$time$vals * 3600 + hycom_t0(x)
+}
+
+
+#' Retrieve HYCOM spatial resolution
+#' 
+#' @seealso [HYCOM](https://www.hycom.org/dataserver/gofs-3pt1/analysis)
 #' 
 #' @export
-#' @param X ncdf4 object
-#' @return 2 element [lon, lat] resolution vector
-ersst_res <- function(X){
-  
-  g <- ncdf4::ncatt_get(X, 0)
-  nm <- names(g)
-  
-  ix <- grep("geospatial_lon_res", nm, fixed = TRUE)
-  if (length(ix) > 0){
-    lon <- sub(" degrees", "", g[[ix]][1], fixed = TRUE)
-  } else {
-    lon <- 0.1
-  }
-
-  ix <- grep("geospatial_lat_res", nm, fixed = TRUE)
-  if (length(ix) > 0){
-    lat <- sub(" degrees", "", g[[ix]][1], fixed = TRUE)
-  } else {
-    lat <- 0.1
-  }
-  
-  as.numeric(c(lon, lat))
+#' @param x ncdf4 object
+#' @return two element [x, y] resolution
+hycom_res <- function(x){
+  # TODO
+  # this is fixed for recent (as of?) outputs, but earlier had low res poleward
+  # and high res equator-ward  So we need to inquire within the NCDF object
+  c(0.08, 0.04)
 }
 
-#' Retrieve the time epoch stated in the dimension attribute
+#' Retrieve HYCOM spatial resolution as a per element look up table
+#' 
+#' @seealso [HYCOM](https://www.hycom.org/dataserver/gofs-3pt1/analysis)
 #' 
 #' @export
-#' @param X ncdf4 object
-#' @return POSIXct time epoch
-ersst_t0 <- function(X){
-  #dim$time$units units: seconds since 1981-01-01 00:00:00 UTC
-  as.POSIXct(X$dim$time$units,
-             format = "minutes since %Y-%m-%d %H:%M",
-             tz = "UTC")
+#' @param x ncdf4 object
+#' @return two element [x, y] list of resolution vectors
+hycom_res_lut <- function(x){
+  dlon <- round(diff(x$dim$lon$vals),2)
+  dlon <- c(dlon, dlon[length(dlon)])
+  dlat <- round(diff(x$dim$lat$vals),2)
+  dlat <- c(dlat, dlat[length(dlat)])
+  list(x = dlon, y = dlat)
 }
 
-#' Retrieve the time dimension of the NCDF object
-#'
-#' @export
-#' @param X ncdf4 object
-#' @param t0 POSIXct, the origin of the time dimension
-#' @param form character, output format. One of "Date" or "POSIXct" (default)
-#' @return vector fo time stamps as determined by \code{form} argument
-ersst_time <- function(X,
-                     t0 = ersst_t0(X),
-                     form = c("Date", "POSIXct")[2]){
-  stopifnot(inherits(X, 'ncdf4'))
-  if (!("time" %in% names(X$dim))) stop("time dimension not found")
-  time <- X$dim$time$vals * 60 + t0
-  switch(tolower(form[1]),
-         "date" = as.Date(time),
-         time)
-}
-
-#' Retrieve ersst variables
+#' Retrieve the names of variables
 #' 
 #' @export
-#' @param X ncdf4 object
-#' @return character vector
-ersst_vars <- function(X){
-  if (inherits(X, "ncdf4")){
-    x <- names(X$var)
-  } else {
-    x <- c("sst", "ssta")
-  }
-  x
+#' @param x ncdf4 object
+#' @param drop character, the variable to drop, set to 'none' to drop none.
+#' @return character vector of variable names
+hycom_vars <- function(x, drop = c("salinity_bottom", "water_temp_bottom", 
+                                   'tau',
+                                   'water_u_bottom', 'water_v_bottom')){
+  nm <- names(x$var)
+  nm[!(nm %in% drop)]
 }
 
-#' Retrieve ersst navigation values (start, count, lons, lats)
+#' Retrieve a list of the dimensions for each variable
+#' 
+#' @export
+#' @param x ncdf4 object
+#' @return named list, one element per variable, identifying the dimensions
+hycom_vardims <- function(x){
+  sapply(names(x$var), 
+         function(vname){
+           sapply(X$var[[vname]]$dim, function(x) {x$name})
+         }, simplify = FALSE)
+}
+
+#' Retrieve a list of the number of dimensions for each variable
+#' 
+#' @export
+#' @param x ncdf4 object
+#' @return named vector, one element per variable, identifying the number of dimensions
+hycom_varndims <- function(x){
+  sapply(names(x$var), 
+         function(vname){
+           X$var[[vname]]$ndims
+         })
+}
+
+
+#' Retrieve hycom navigation values (start, count, lons, lats)
 #'
 #' @export
 #' @param X ncdf4 object
@@ -92,19 +110,48 @@ ersst_vars <- function(X){
 #'   \item{crs character, proj string for \code{\link[raster]{raster}}}
 #'   \item{varname character}
 #' }
-ersst_nc_nav_point <- function(X, g,
-                          res = ersst_res(X),
-                          time = c(1, -1),
-                          lev = c(1, -1),
-                          varname = ersst_vars(X)){
+hycom_nc_nav_point <- function(X, g,
+                               res = hycom_res(X),
+                               time = c(1, 1),
+                               lev = c(1, -1),
+                               varname = hycom_vars(X)){
   
   stopifnot(inherits(X, 'ncdf4'))
   if (!(varname[1] %in% names(X$var))) stop("varname not known:", varname[1])
   if (length(res) == 1) res <- c(res[1],res[1])
-  half <- res/2
+
+
+  # accepts one row tibble (key is empty since we are rowwise)
+  # X the ncdf4 objecy
+  # returns tibble with start and count appended [x, y, level, time]
+  locate_xyzt <- function(tbl, key, X = NULL){
+    ix <- sapply(tbl[['X']],
+                 function(x){
+                   which.min(abs(X$dim$lon$vals - x))[1]
+                 })
+    iy <- sapply(tbl[['Y']],
+                 function(y){
+                   which.min(abs(X$dim$lat$vals - y))[1]
+                 })
+    iz <- sapply(tbl[['Z']],
+                 function(z){
+                   which.min(abs(X$dim$depth$vals - z))[1]
+                 })
+    it <- sapply(tbl[['M']],
+                 function(z, t0 = NULL){
+                   which.min(abs(hycom_time(X) - (z + t0)))[1]
+                 }, t0 = xyzt::POSIX_epoch())
+    
+    start <-  unname(c(ix, iy, iz, it))
+    count <- rep(1, length(start))
+    tbl |>
+      dplyr::mutate(start = list(start), count = list(count))
+  }
   
-  
-  locate_xy <- function(tbl, key, X = NULL){
+  # accepts one row tibble (key is empty since we are rowwise)
+  # X the ncdf4 objecy
+  # returns tibble with start and count appended [x, y, time]
+  locate_xyt <- function(tbl, key, X = NULL){
     ix <- sapply(tbl[[1]],
                  function(x){
                    which.min(abs(X$dim$lon$vals - x))[1]
@@ -112,17 +159,33 @@ ersst_nc_nav_point <- function(X, g,
     iy <- sapply(tbl[[2]],
                  function(y){
                    which.min(abs(X$dim$lat$vals - y))[1]
-                })
-    start <- list(cbind(ix,iy, lev[1], time[1]))
-    count <- list(matrix(1, ncol = length(start[[1]]), nrow = nrow(tbl)))
+                 })
+    iz <- sapply(tbl[[3]],
+                 function(z, t0 = NULL){
+                   which.min(abs(hycom_time(X) - (z + t0)))[1]
+                 }, t0 = xyzt::POSIX_epoch())
+    
+    start <-  unname(c(ix,iy,iz))
+    count <- rep(1, length(start))
     tbl |>
-      dplyr::mutate(start = start, count = count)
+      dplyr::mutate(start = list(start), count = list(count))
+  }
+  
+  
+  d <- xyzt::get_geometry_dimension(g)
+  nd <- nchar(d)
+  if (nd == 3){
+    FUN <- locate_xyt
+  } else if(nd == 4){
+    FUN <- locate_xyzt
+  } else {
+    stop("coordinates must be xyt or xyzt")
   }
   
   xy <- sf::st_coordinates(g) |>
     dplyr::as_tibble() |>
     dplyr::rowwise() |>
-    dplyr::group_map(locate_xy, X = X) |>
+    dplyr::group_map(FUN, X = X) |>
     dplyr::bind_rows() |>
     dplyr::mutate(varname = paste(varname, collapse = ",")) |>
     tidyr::separate_rows(.data$varname, sep = ",")
@@ -131,16 +194,15 @@ ersst_nc_nav_point <- function(X, g,
 }
 
 
-
-
-#' Retrieve ersst navigation values (start, count, lons, lats)
+#' Retrieve hycom navigation values (start, count, lons, lats)
 #'
 #' @export
 #' @param X ncdf4 object
-#' @param g geometry object that defines a bounding box
+#' @param g geometry object that defines a bounding box and possibly coded with time (XYM/XYZ)
 #' @param res numeric, 2 element resolution \code{[res_x,res_y]}
 #' @param varname character the name of the variable
-#' @param time numeric two elements time indexing \code{[start, length]}.
+#' @param time numeric two elements time indexing \code{[start, length]}. Ignored if
+#'   the geometry is coded with a 3rd dimension
 #'   \code{start} is a 1-based index into the time dimension
 #'   \code{length} is the number of indices to retrieve (assumed to be contiguous sequence)
 #' @param lev numeric two elements time indexing \code{[start, length]}.
@@ -156,11 +218,11 @@ ersst_nc_nav_point <- function(X, g,
 #'   \item{crs character, proj string for \code{\link[raster]{raster}}}
 #'   \item{varname character}
 #' }
-ersst_nc_nav_bb <- function(X, g,
-                       res = ersst_res(X),
-                       time = c(1, -1),
-                       lev = c(1, -1),
-                       varname =  ersst_vars(X)){
+hycom_nc_nav_bb <- function(X, g,
+                            res = hycom_res(X),
+                            time = c(35000, 1),
+                            lev = c(1, 1),
+                            varname =  hycom_vars(X)[1]){
   
   stopifnot(inherits(X, 'ncdf4'))
   if (!(varname[1] %in% names(X$var))) stop("varname not known:", varname[1])
@@ -169,7 +231,7 @@ ersst_nc_nav_bb <- function(X, g,
   
   bb <- sf::st_bbox(g) |> as.numeric()
   bb <- bb[c(1,3,2,4)]
-
+  
   bb2 <- bb + c(-half[1], half[1], -half[2], half[2])
   ix <- sapply(bb2[1:2],
                function(xbb) which.min(abs(X$dim$lon$vals - xbb)))
@@ -177,6 +239,24 @@ ersst_nc_nav_bb <- function(X, g,
   iy <- sapply(bb2[3:4],
                function(ybb) which.min(abs(X$dim$lat$vals-ybb)))
   sn <- X$dim$lat$vals[iy]
+  
+  # if the polyon contains time then we override any user supplied values 
+  # for time
+  
+  d <- get_geometry_dimension(g)
+  nd <- nchar(d)
+  if (nd < 3){
+    stop("coordinates must be xyt or xyzt")
+  } else if (nd == 3){
+    xyz <- sf::st_coordinates(g)
+    btimes <- hycom_time(X)
+    time <- c(findInterval(xyz[1,3] + xyzt::POSIX_epoch(), btimes),1)
+  } else {
+    xyz <- sf::st_coordinates(g)
+    btimes <- hycom_time(X)
+    time <- c(findInterval(xyz[1,4] + xyzt::POSIX_epoch(), btimes),1)
+    lev <- c(which.min(abs(X$dim$depth$vals - xyz[1,3])),1)
+  }
   
   list(bb = bb,
        res = res,

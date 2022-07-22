@@ -1,0 +1,87 @@
+File https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/ts3z (NC_FORMAT_CLASSIC):
+
+     5 variables (excluding dimension variables):
+        double tau[time]   
+            long_name: Tau
+            units: hours since analysis
+            time_origin: 2022-07-18 12:00:00
+            NAVO_code: 56
+        short water_temp[lon,lat,depth,time]   
+            long_name: Water Temperature
+            standard_name: sea_water_temperature
+            units: degC
+            _FillValue: -30000
+            missing_value: -30000
+            scale_factor: 0.00100000004749745
+            add_offset: 20
+            NAVO_code: 15
+            comment: in-situ temperature
+        short water_temp_bottom[lon,lat,time]   
+            long_name: Water Temperature
+            standard_name: sea_water_temperature_at_bottom
+            units: degC
+            _FillValue: -30000
+            missing_value: -30000
+            scale_factor: 0.00100000004749745
+            add_offset: 20
+            NAVO_code: 15
+            comment: in-situ temperature
+        short salinity[lon,lat,depth,time]   
+            long_name: Salinity
+            standard_name: sea_water_salinity
+            units: psu
+            _FillValue: -30000
+            missing_value: -30000
+            scale_factor: 0.00100000004749745
+            add_offset: 20
+            NAVO_code: 16
+        short salinity_bottom[lon,lat,time]   
+            long_name: Salinity
+            standard_name: sea_water_salinity_at_bottom
+            units: psu
+            _FillValue: -30000
+            missing_value: -30000
+            scale_factor: 0.00100000004749745
+            add_offset: 20
+            NAVO_code: 16
+
+     4 dimensions:
+        depth  Size:40 
+            long_name: Depth
+            standard_name: depth
+            units: m
+            positive: down
+            axis: Z
+            NAVO_code: 5
+        lat  Size:4251 
+            long_name: Latitude
+            standard_name: latitude
+            units: degrees_north
+            point_spacing: even
+            axis: Y
+            NAVO_code: 1
+        lon  Size:4500 
+            long_name: Longitude
+            standard_name: longitude
+            units: degrees_east
+            modulo: 360 degrees
+            axis: X
+            NAVO_code: 2
+        time  Size:10577 
+            long_name: Valid Time
+            units: hours since 2000-01-01 00:00:00
+            time_origin: 2000-01-01 00:00:00
+            calendar: gregorian
+            axis: T
+            NAVO_code: 13
+
+    9 global attributes:
+        classification_level: UNCLASSIFIED
+        distribution_statement: Approved for public release. Distribution unlimited.
+        downgrade_date: not applicable
+        classification_authority: not applicable
+        institution: Fleet Numerical Meteorology and Oceanography Center
+        source: HYCOM archive file
+        history: archv2ncdf3z
+        field_type: instantaneous
+        Conventions: CF-1.6 NAVO_netcdf_v1.1

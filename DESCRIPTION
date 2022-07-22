@@ -1,26 +1,19 @@
-Package: ersst
-Title: ersst
-Description: Simplified access to ersst (Extended Reconstructed Sea Surface Temperature) data from R.
-URL: https://github.com/BigelowLab/ersst
+Package: hycom
+Title: hycom
+Description: Provides for access from R to HYCOM online datasets.
+URL: https://github.com/BigelowLab/hycom
 Version: 0.1
 Depends:
     R (>= 4.1)
 Imports:
-    utils,
     rlang,
     dplyr,
-    httr,
-    xml2,
-    rvest,
-    readr,
-    terra,
-    tidyr,
     sf,
     stars,
     ncdf4,
     xyzt
 Maintainer: Ben Tupper <btupper@bigelow.org>
-Author: Ben Tupper <btupper@bigelow.org>, Johnathan Evanilla <jevanilla@bigelow.org>
+Author: Camille Ross <cross@bigelow.org>, Ben Tupper <btupper@bigelow.org>
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
