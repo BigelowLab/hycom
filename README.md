@@ -1,8 +1,6 @@
 hycom
 ================
 
-# hycom
-
 Provides for access from R to [HYCOM](https://www.hycom.org/) online
 datasets.
 
@@ -59,13 +57,6 @@ url <- hycom_url(filename = "ts3z")
 # open the resource
 X <- ncdf4::nc_open(url)
 
-if (FALSE){
-  g <- sf::st_geometry(x)
-  y <- X
-  res = hycom_res(X)
-  verbose = TRUE
-  varname = "water_temp"
-}
 # extract the data 
 covars <- hycom::extract(x, X, varname = c("salinity", "water_temp"))
 
@@ -94,23 +85,45 @@ Learn more about working with
 [stars](https://CRAN.R-project.org/package=stars) objects in the
 [vignettes](https://r-spatial.github.io/stars/).
 
-    # read in example SAB points
-    x <- xyzt::read_sab() |>
-      dplyr::mutate(lon = xyzt::to_360(lon),
-                    depth = abs(depth)) |>    
-      xyzt::as_BBOX(dim = 'xyzt')
+``` r
+# read in example SAB points
+x <- xyzt::read_sab() |>
+  dplyr::mutate(lon = xyzt::to_360(lon),
+                depth = abs(depth)) |>    
+  xyzt::as_POINT(dims = 'xyzt') |>
+  xyzt::as_BBOX()
 
-    (covars <- hycom::extract(x, X, varnames = hycom::hycom_vars(X)))
+(covars <- hycom::extract(x, X, varname = c("salinity", 'water_temp')))
+```
+
+    ## stars object with 2 dimensions and 2 attributes
+    ## attribute(s):
+    ##               Min.  1st Qu. Median     Mean 3rd Qu.   Max. NA's
+    ## salinity    30.052 36.17375 36.260 36.17165  36.368 36.508 1109
+    ## water_temp  24.911 26.59275 27.683 27.45807  28.137 29.550 1109
+    ## dimension(s):
+    ##   from  to  offset      delta refsys point values x/y
+    ## x    1 101 279.815  0.0785842 WGS 84    NA   NULL [x]
+    ## y    1 157  34.714 -0.0395287 WGS 84    NA   NULL [y]
 
 Now let’s see what it looks like.
 
-    x <- xyzt::read_sab() |>
-      dplyr::select(-time, -depth) |>
-      dplyr::mutate(lon = xyzt::to_360(lon)) |>
-      xyzt::as_POINT()
-    par(mfrow = c(1,2))
-    plot(covars, attr = 'sst', axes = TRUE, reset = FALSE)
-    plot(sf::st_geometry(x), add = TRUE, col = "orange", pch = 19, cex = 2)
+``` r
+x <- xyzt::read_sab() |>
+  dplyr::select(-time, -depth) |>
+  dplyr::mutate(lon = xyzt::to_360(lon)) |>
+  xyzt::as_POINT()
+
+
+par(mfrow = c(1,2))
+plot(covars['salinity'], key.pos = NULL, axes = TRUE, reset = FALSE)
+plot(sf::st_geometry(x), add = TRUE, col = "orange", pch = 19, cex = 2)
+
+plot(covars['water_temp'], key.pos = NULL, axes = TRUE, reset = FALSE)
+plot(sf::st_geometry(x), add = TRUE, col = "orange", pch = 19, cex = 2)
+```
+
+![](README_files/figure-gfm/show_boxes-1.png)<!-- -->
 
 ``` r
 # cleanup

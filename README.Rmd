@@ -7,8 +7,6 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# hycom
-
 Provides for access from R to [HYCOM](https://www.hycom.org/) online datasets.
 
 ### [Citation](https://www.hycom.org/)
@@ -51,7 +49,7 @@ suppressPackageStartupMessages({
 
 See the [xyzt](https://github.com/BigelowLab/xyzt) package for more details on the example Southern US Atlantic Bight data.
 
-```{r}
+```{r points}
 # read in example SAB points
 x <- xyzt::read_sab() |>
   dplyr::mutate(lon = xyzt::to_360(lon),  # HYCOM lons are [0,360]
@@ -64,13 +62,6 @@ url <- hycom_url(filename = "ts3z")
 # open the resource
 X <- ncdf4::nc_open(url)
 
-if (FALSE){
-  g <- sf::st_geometry(x)
-  y <- X
-  res = hycom_res(X)
-  verbose = TRUE
-  varname = "water_temp"
-}
 # extract the data 
 covars <- hycom::extract(x, X, varname = c("salinity", "water_temp"))
 
@@ -83,31 +74,38 @@ covars <- hycom::extract(x, X, varname = c("salinity", "water_temp"))
 
 Learn more about working with [stars](https://CRAN.R-project.org/package=stars) objects in the [vignettes](https://r-spatial.github.io/stars/).
 
-```
+```{r boxes}
 # read in example SAB points
 x <- xyzt::read_sab() |>
   dplyr::mutate(lon = xyzt::to_360(lon),
                 depth = abs(depth)) |>    
-  xyzt::as_BBOX(dims = 'xyzt')
+  xyzt::as_POINT(dims = 'xyzt') |>
+  xyzt::as_BBOX()
 
-(covars <- hycom::extract(x, X, varnames = hycom::hycom_vars(X)))
+(covars <- hycom::extract(x, X, varname = c("salinity", 'water_temp')))
 ```
 
 Now let's see what it looks like.
 
-```
+```{r show_boxes}
 x <- xyzt::read_sab() |>
   dplyr::select(-time, -depth) |>
   dplyr::mutate(lon = xyzt::to_360(lon)) |>
   xyzt::as_POINT()
+
+
 par(mfrow = c(1,2))
-plot(covars, attr = 'sst', axes = TRUE, reset = FALSE)
+plot(covars['salinity'], key.pos = NULL, axes = TRUE, reset = FALSE)
 plot(sf::st_geometry(x), add = TRUE, col = "orange", pch = 19, cex = 2)
+
+plot(covars['water_temp'], key.pos = NULL, axes = TRUE, reset = FALSE)
+plot(sf::st_geometry(x), add = TRUE, col = "orange", pch = 19, cex = 2)
+
 ```
 
 
 
-```{r}
+```{r cleanup}
 # cleanup
 ncdf4::nc_close(X)
 ```
