@@ -241,7 +241,7 @@ box_360 = sf::st_bbox( c(xmin = to_360(-81),
                        crs = 4326)
 ```
 
-#### Extract the data
+#### Extract point data
 
 Here we extract salinity and water_temp and bind these to the points.
 
@@ -362,6 +362,33 @@ plot(sf::st_geometry(points_360), add = TRUE, col = "orange", pch = 19, cex = 2)
 ```
 
 ![](README_files/figure-gfm/show_boxes-1.png)<!-- -->
+
+You are not limited to one depth/time layer at a time. You can request
+either a series of times or a series of depths (but not both!)
+
+First a series of times at the surface.
+
+``` r
+covars = extract(box_360, X,
+                 time = time[1:20],
+                 depth = 0,
+                 varname = c('salinity', 'water_temp'))
+plot(covars['water_temp'])
+```
+
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+And now a series of depths at a given time.
+
+``` r
+covars = extract(box_360, X,
+                 time = as.POSIXct("2020-01-06 09:00:00", tz = 'UTC'),
+                 depth = depth[1:20],
+                 varname = c('salinity', 'water_temp'))
+plot(covars['water_temp'])
+```
+
+![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 # cleanup

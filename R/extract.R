@@ -83,22 +83,60 @@ extract.bbox <- function(x, y = NULL, varname = hycom_vars(y)[1], flip = "y",
                          time = hycom_most_recent_time(y),
                          depth = 0, ...){
   
-  if (length(time) > 1) warning("only the first requested time is used")
-  if (length(depth) > 1) warning("only the first requested depth is used")
+  ntime = length(time)
+  ndepth = length(depth)
+  if (ntime > 1) {
+    if (ndepth > 1) stop("if time has more than one value than depth can have only one")
+  }
+  
+  #if (length(time) > 1) warning("only the first requested time is used")
+  #if (length(depth) > 1) warning("only the first requested depth is used")
+    
   x = sf::st_as_sfc(x)
   
-  iz <- which.min(abs(y$dim$depth$vals - depth[1]))[1]
-  im <- which.min(abs(time[1] - hycom_time(y)))[1]
+  DEPTH = y$dim$depth$vals
+  idepth <- findInterval(depth, DEPTH)
+  TIME = hycom_time(y)
+  itime <- findInterval(time, TIME)
   
+  # for each variable
+  #   for each time or depth
+  # bind attributes
   rr = lapply(varname,
-             function(v){
-                extract(x, y = y, 
-                        varname = v, 
-                        flip = flip, 
-                        time = c(im,1), 
-                        lev = c(iz,1),
-                        ...)
-               })
+             function(v, id = 1, it = 1){
+               if (length(id) > 1){
+                 r = lapply(idepth,
+                            function(dep, ...){
+                              extract(x, y = y, 
+                                   varname = v, 
+                                   flip = flip, 
+                                   time = c(it,1), 
+                                   lev = c(dep,1),
+                                   ...)
+                            }, ...) 
+                 r = do.call(c, append(r, list(along = list(depth = DEPTH[idepth]))))
+                   
+               } else if(length(it) > 1){
+                 r = lapply(it,
+                            function(tim, ...){
+                              extract(x, y = y, 
+                                      varname = v, 
+                                      flip = flip, 
+                                      time = c(tim,1), 
+                                      lev = c(id,1),
+                                      ...)
+                            }, ...) 
+                 r = do.call(c, append(r, list(along = list(time= TIME[itime]))))
+               } else {
+                 r = extract(x, y = y, 
+                          varname = v, 
+                          flip = flip, 
+                          time = c(it,1), 
+                          lev = c(id,1),
+                          ...)
+               }
+              r
+        }, id = idepth, it = itime, ...)
     Reduce(c, rr)      
 }
 
