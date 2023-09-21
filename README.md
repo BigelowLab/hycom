@@ -138,7 +138,7 @@ X
     ##         double tau[time]   
     ##             long_name: Tau
     ##             units: hours since analysis
-    ##             time_origin: 2023-09-19 12:00:00
+    ##             time_origin: 2023-09-20 12:00:00
     ##             NAVO_code: 56
     ##         short water_temp[lon,lat,depth,time]   
     ##             long_name: Water Temperature
@@ -201,7 +201,7 @@ X
     ##             modulo: 360 degrees
     ##             axis: X
     ##             NAVO_code: 2
-    ##         time  Size:14001 
+    ##         time  Size:14009 
     ##             long_name: Valid Time
     ##             units: hours since 2000-01-01 00:00:00
     ##             time_origin: 2000-01-01 00:00:00
@@ -297,9 +297,9 @@ cat("tail of time\n")
 tail(time)
 ```
 
-    ## [1] "2023-09-19 18:00:00 UTC" "2023-09-19 21:00:00 UTC"
-    ## [3] "2023-09-20 00:00:00 UTC" "2023-09-20 03:00:00 UTC"
-    ## [5] "2023-09-20 06:00:00 UTC" "2023-09-20 09:00:00 UTC"
+    ## [1] "2023-09-20 18:00:00 UTC" "2023-09-20 21:00:00 UTC"
+    ## [3] "2023-09-21 00:00:00 UTC" "2023-09-21 03:00:00 UTC"
+    ## [5] "2023-09-21 06:00:00 UTC" "2023-09-21 09:00:00 UTC"
 
 It looks like every three hours since Dec 4, 2018. We can just pick time
 in that range (it doesn’t have to be extact as we interpolate.)
@@ -335,16 +335,16 @@ the software will interpolate to one of the set depths.
 ``` r
 covars <- extract(box_360, X, 
                   time = as.POSIXct("2020-01-06 09:00:00", tz = 'UTC'),
-                  depth = 2000,
+                  depth = 2,
                   varname = c('salinity', 'water_temp'))
 covars
 ```
 
     ## stars object with 2 dimensions and 2 attributes
     ## attribute(s):
-    ##                  Min.   1st Qu.    Median      Mean   3rd Qu.      Max.  NA's
-    ## salinity    35.005001 35.061001 35.079001 35.071116 35.087001 35.115001 11498
-    ## water_temp   3.100999  3.685999  3.811999  3.776018  3.890999  4.078999 11498
+    ##               Min. 1st Qu. Median     Mean 3rd Qu.   Max. NA's
+    ## salinity    30.891  36.364 36.530 36.46857  36.631 36.784 2552
+    ## water_temp  13.199  22.054 23.312 22.87837  24.392 26.125 2552
     ## dimension(s):
     ##   from  to offset   delta refsys x/y
     ## x    1 127    279 0.07874 WGS 84 [x]

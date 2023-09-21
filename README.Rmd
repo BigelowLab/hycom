@@ -114,7 +114,7 @@ box_360 = sf::st_bbox( c(xmin = to_360(-81),
                        crs = 4326)
 ```
 
-#### Extract the data 
+#### Extract point data 
 
 Here we extract salinity and water_temp and bind these to the points.
 ```{r}
@@ -148,7 +148,7 @@ That is irregular spacing, but once again we can request any depth and the softw
 ```{r boxes}
 covars <- extract(box_360, X, 
                   time = as.POSIXct("2020-01-06 09:00:00", tz = 'UTC'),
-                  depth = 2000,
+                  depth = 2,
                   varname = c('salinity', 'water_temp'))
 covars
 ```
@@ -164,7 +164,6 @@ plot(covars['water_temp'], key.pos = NULL, axes = TRUE, reset = FALSE)
 plot(sf::st_geometry(points_360), add = TRUE, col = "orange", pch = 19, cex = 2)
 
 ```
-
 
 
 ```{r cleanup}
