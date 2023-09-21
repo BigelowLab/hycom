@@ -1,3 +1,14 @@
+#' Retrieve the POSIX epoch
+#' 
+#' @export
+#' @param x character date and time of epoch
+#' @param tz character, time zone
+#' @param ... other arguments for \code{\link[base]{as.POSIXct}}
+#' @return POSIXct time
+POSIX_epoch <- function(x = '1970-01-01 00:00:00', tz = 'UTC', ...){
+  as.POSIXct(x, tz = tz, ...)
+}
+
 #' Retrieve the HYCOM time origin 
 #' 
 #' @export 
@@ -11,12 +22,30 @@ hycom_t0 <- function(x, tz = 'UTC'){
 
 #' Retrieve the HYCOM time vector 
 #' 
-
 #' @export 
 #' @param x ncdf4 object
 #' @return POSIXct time
 hycom_time <- function(x){
   x$dim$time$vals * 3600 + hycom_t0(x)
+}
+
+
+#' Retrieve the most recent timestep
+#' @export 
+#' @param x ncdf4 object
+#' @return POSIXct time
+hycom_most_recent_time <- function(x){
+  x$dim$time$vals[x$dim$time$len] * 3600 + hycom_t0(x)
+}
+
+
+#' Retrieve the HYCOM depth vector 
+#' 
+#' @export 
+#' @param x ncdf4 object
+#' @return a vector of depths
+hycom_depth <- function(x){
+  x$dim$depth$vals
 }
 
 
@@ -140,7 +169,7 @@ hycom_nc_nav_point <- function(X, g,
     it <- sapply(tbl[['M']],
                  function(z, t0 = NULL){
                    which.min(abs(hycom_time(X) - (z + t0)))[1]
-                 }, t0 = xyzt::POSIX_epoch())
+                 }, t0 = POSIX_epoch())
     
     start <-  unname(c(ix, iy, iz, it))
     count <- rep(1, length(start))
@@ -163,7 +192,7 @@ hycom_nc_nav_point <- function(X, g,
     iz <- sapply(tbl[[3]],
                  function(z, t0 = NULL){
                    which.min(abs(hycom_time(X) - (z + t0)))[1]
-                 }, t0 = xyzt::POSIX_epoch())
+                 }, t0 = POSIX_epoch())
     
     start <-  unname(c(ix,iy,iz))
     count <- rep(1, length(start))
@@ -172,7 +201,7 @@ hycom_nc_nav_point <- function(X, g,
   }
   
   
-  d <- xyzt::get_geometry_dimension(g)
+  d <- get_geometry_dimension(g)
   nd <- nchar(d)
   if (nd == 3){
     FUN <- locate_xyt
@@ -220,7 +249,7 @@ hycom_nc_nav_point <- function(X, g,
 #' }
 hycom_nc_nav_bb <- function(X, g,
                             res = hycom_res(X),
-                            time = c(35000, 1),
+                            time = c(X$dim$time$len, 1),
                             lev = c(1, 1),
                             varname =  hycom_vars(X)[1]){
   
@@ -240,21 +269,18 @@ hycom_nc_nav_bb <- function(X, g,
                function(ybb) which.min(abs(X$dim$lat$vals-ybb)))
   sn <- X$dim$lat$vals[iy]
   
-  # if the polyon contains time then we override any user supplied values 
-  # for time
-  
   d <- get_geometry_dimension(g)
   nd <- nchar(d)
   if (nd < 3){
-    stop("coordinates must be xyt or xyzt")
+    # do nothing?
   } else if (nd == 3){
     xyz <- sf::st_coordinates(g)
     btimes <- hycom_time(X)
-    time <- c(findInterval(xyz[1,3] + xyzt::POSIX_epoch(), btimes),1)
+    time <- c(findInterval(xyz[1,3] + POSIX_epoch(), btimes),1)
   } else {
     xyz <- sf::st_coordinates(g)
     btimes <- hycom_time(X)
-    time <- c(findInterval(xyz[1,4] + xyzt::POSIX_epoch(), btimes),1)
+    time <- c(findInterval(xyz[1,4] + POSIX_epoch(), btimes),1)
     lev <- c(which.min(abs(X$dim$depth$vals - xyz[1,3])),1)
   }
   

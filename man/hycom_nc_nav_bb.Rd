@@ -8,7 +8,7 @@ hycom_nc_nav_bb(
   X,
   g,
   res = hycom_res(X),
-  time = c(35000, 1),
+  time = c(X$dim$time$len, 1),
   lev = c(1, 1),
   varname = hycom_vars(X)[1]
 )

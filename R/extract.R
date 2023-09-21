@@ -1,3 +1,58 @@
+#' Convert [0,360] longitudes to [-180, 180]
+#'
+#' @seealso \url{https://gis.stackexchange.com/questions/201789/verifying-formula-that-will-convert-longitude-0-360-to-180-to-180/201793}
+#' @export
+#' @param x numeric vector, no check is done for being withing [0, 360] range
+#' @return numeric vector
+to_180 <- function(x) { ((x + 180) %% 360) - 180 }
+
+#' Convert [-180,180] longitudes to [0, 360]
+#'
+#' @seealso \url{https://gis.stackexchange.com/questions/201789/verifying-formula-that-will-convert-longitude-0-360-to-180-to-180/201793}
+#' @export
+#' @param x numeric vector, no check is done for being within [0,3 60] range
+#' @return numeric vector
+to_360 <- function(x) {x %% 360}
+
+
+#' Get geometry dimension code
+#' 
+#' @export
+#' @param x sf or sfc object
+#' @param recursive logical, if TRUE drill down to get the type for each
+#'   feature.
+#' @return character vector such as "XY" or "XYZ"
+get_geometry_dimension <- function(x, recursive = FALSE){
+  if (recursive[1]){
+    x <- sf::st_geometry(x)
+    d <- sapply(x,
+                function(x) {
+                  sort(unique(sapply(x, function(x) class(x)[1])))
+                })
+  } else {
+    x <- sf::st_geometry(x)
+    d <- sort(unique(sapply(x, function(x) class(x)[1])))
+  }
+  d
+}
+
+#' Get geometry type code
+#' 
+#' @export
+#' @param x sf or sfc object
+#' @param recursive logical, if TRUE drill down to get the type for each
+#'   feature.
+#' @return character vector such as "POINT" or "POLYGON"
+get_geometry_type <- function(x, recursive = FALSE){
+  if (recursive[1]){
+    klass <- sapply(sf::st_geometry(x), class)
+  } else {
+    klass <- sf::st_geometry(x) |>
+      class()
+  }
+  sub("sfc_", "", klass[1])
+}
+
 #' extract generic
 #'
 #' @export
@@ -18,6 +73,36 @@ extract.default <- function(x, y = NULL, ...){
 }
 
 #' @export
+#' @param x \code{bbox} object that defines a bounding box
+#' @param y \code{ncdf4} object 
+#' @param varname character one or more variable names
+#' @param flip char one of "y", "x" or "none" to flip the raster
+#' @return stars object (one variable per covariate)
+#' @describeIn extract Extract from a NCDF4 object using any sf object
+extract.bbox <- function(x, y = NULL, varname = hycom_vars(y)[1], flip = "y", 
+                         time = hycom_most_recent_time(y),
+                         depth = 0, ...){
+  
+  if (length(time) > 1) warning("only the first requested time is used")
+  if (length(depth) > 1) warning("only the first requested depth is used")
+  x = sf::st_as_sfc(x)
+  
+  iz <- which.min(abs(y$dim$depth$vals - depth[1]))[1]
+  im <- which.min(abs(time[1] - hycom_time(y)))[1]
+  
+  rr = lapply(varname,
+             function(v){
+                extract(x, y = y, 
+                        varname = v, 
+                        flip = flip, 
+                        time = c(im,1), 
+                        lev = c(iz,1),
+                        ...)
+               })
+    Reduce(c, rr)      
+}
+
+#' @export
 #' @param x \code{sf} object with POSIX time encoded in the coordinates
 #' @param y \code{ncdf4} object
 #' @param varname character, one or more variable names
@@ -28,7 +113,7 @@ extract.sf <- function(x, y = NULL,
                        verbose = FALSE, 
                        ...){
   
-  typ <- xyzt::get_geometry_type(x)
+  typ <- get_geometry_type(x)
   if (verbose[1]) {
     cat("extract.sf type: ", typ, "\n" )
     cat("  varname:", paste(varname, collapse = ", "), "\n")
@@ -36,14 +121,21 @@ extract.sf <- function(x, y = NULL,
   switch(typ,
          "POINT" = {
            g <- sf::st_geometry(x)
-           d <- xyzt::get_geometry_dimension(g)
+           d <- get_geometry_dimension(g)
            # this isn't right... we need to test for each variable name the number
            # of required dims... This means a user could get water_temp[x,y,z,t] and
            # bottom_water_temp[x,y,t] in a single call.  Hmmm.
-           if ((nchar(d) < 3)) stop("time must be included in xyzt coordinates")
+           if ((nchar(d) < 3)) stop("time must be included in XYZT or XYZM coordinates")
            r <- extract(g, y = y, varname = varname, verbose = verbose, ...)
          },
-         #"BBOX" = {do something ?}
+         "BBOX" = {
+           g <- sf::st_as_sfc(x) |> sf::st_geometry(x)
+           ss <- lapply(varname,
+                        function(varnm,g = NULL, y = NULL, ...) {
+                          extract(g, y = y, varname = varnm, verbose = verbose, ...)
+                        }, g = g, y = y, ...)
+           r <- Reduce(c, ss)
+         },
          "POLYGON" = {
            
            g <- sf::st_geometry(x)
@@ -106,19 +198,20 @@ extract.sfc_POINT <- function(x, y = NULL,
 #' @param y \code{ncdf4} object 
 #' @param varname character one or more variable names
 #' @param verbose logical, output helpful messages?
+#' @param flip character, one of 'x', 'y' or 'none'
 #' @return stars object (one variable per covariate)
 #' @describeIn extract Extract data from a NCDF4 object using sf POLYGON object
 extract.sfc_POLYGON <- function(x, y = NULL, 
                                 varname = hycom_vars(y)[1], 
                                 verbose = FALSE,
+                                flip = "y",
                                 ...){
   
   if (verbose[1]) {
     cat("extract.sfc_POLYGON\n" )
     cat("  varname:", paste(varname, collapse = ", "), "\n")
   }
-  #if (!inherits(x, 'sfc')) x <- sf::st_geometry(x)
-  #bb <- xyzt::as_BBOX(x)
+  
   nav <- hycom_nc_nav_bb(y, x, varname = varname, ...)
   m <- ncdf4::ncvar_get(y, varid = varname,
                         start = nav$start, count = nav$count)
@@ -126,7 +219,7 @@ extract.sfc_POLYGON <- function(x, y = NULL,
                      nx = nav$count[1],
                      ny = nav$count[2],
                      values = m ) |>
-    stars::st_flip("y") |>
+    stars::st_flip(flip) |>
     rlang::set_names(varname)
 }
 

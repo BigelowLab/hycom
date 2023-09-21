@@ -3,6 +3,7 @@
 \name{extract}
 \alias{extract}
 \alias{extract.default}
+\alias{extract.bbox}
 \alias{extract.sf}
 \alias{extract.sfc_POINT}
 \alias{extract.sfc_POLYGON}
@@ -12,11 +13,28 @@ extract(x, ...)
 
 \method{extract}{default}(x, y = NULL, ...)
 
+\method{extract}{bbox}(
+  x,
+  y = NULL,
+  varname = hycom_vars(y)[1],
+  flip = "y",
+  time = hycom_most_recent_time(y),
+  depth = 0,
+  ...
+)
+
 \method{extract}{sf}(x, y = NULL, varname = hycom_vars(y), verbose = FALSE, ...)
 
 \method{extract}{sfc_POINT}(x, y = NULL, varname = hycom_vars(y), verbose = FALSE, ...)
 
-\method{extract}{sfc_POLYGON}(x, y = NULL, varname = hycom_vars(y)[1], verbose = FALSE, ...)
+\method{extract}{sfc_POLYGON}(
+  x,
+  y = NULL,
+  varname = hycom_vars(y)[1],
+  verbose = FALSE,
+  flip = "y",
+  ...
+)
 }
 \arguments{
 \item{x}{\code{sfc} object that defines a bounding box}
@@ -27,10 +45,14 @@ extract(x, ...)
 
 \item{varname}{character one or more variable names}
 
+\item{flip}{character, one of 'x', 'y' or 'none'}
+
 \item{verbose}{logical, output helpful messages?}
 }
 \value{
 data frame of covariates (point, or raster)
+
+stars object (one variable per covariate)
 
 tibble of extracted values (one variable per covariate)
 
@@ -41,12 +63,14 @@ extract generic
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{default}: Extract data from a NCDF4 object
+\item \code{extract(default)}: Extract data from a NCDF4 object
 
-\item \code{sf}: Extract from a NCDF4 object using any sf object
+\item \code{extract(bbox)}: Extract from a NCDF4 object using any sf object
 
-\item \code{sfc_POINT}: Extract data from a NCDF4 object using sf POINT object
+\item \code{extract(sf)}: Extract from a NCDF4 object using any sf object
 
-\item \code{sfc_POLYGON}: Extract data from a NCDF4 object using sf POLYGON object
+\item \code{extract(sfc_POINT)}: Extract data from a NCDF4 object using sf POINT object
+
+\item \code{extract(sfc_POLYGON)}: Extract data from a NCDF4 object using sf POLYGON object
+
 }}
-
